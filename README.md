@@ -12,15 +12,18 @@ the binary it installs is **`sef`**.
 ## Install
 
 ```sh
-npm install -g @scrakk-official/cli      # global
+npm install -g @scrakk-official/cli      # from npm (once published)
 npx @scrakk-official/cli build ./ext     # on demand
 ```
 
-Offline / no-registry fallback (installs the tarball attached to the latest
-GitHub Release):
+### Without the npm registry
+
+You do **not** need the package published: install it straight from GitHub —
+npm clones the repo and builds it locally:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/Scrakk-Team/sef-builder/main/install.sh | bash
+npm install -g github:Scrakk-Team/sef-builder
+npx github:Scrakk-Team/sef-builder build ./ext   # or run it without installing
 ```
 
 ## Usage

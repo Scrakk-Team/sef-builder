@@ -4,6 +4,9 @@ node_modules/
 # Build del CLI
 dist/
 
+# Binarios standalone (`bun build --compile`)
+release/
+
 # Tarball de `npm pack`
 *.tgz
 

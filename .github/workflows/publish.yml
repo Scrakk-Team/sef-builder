@@ -4,8 +4,10 @@
 
 # Publica @scrakk-official/cli en npm al empujar un tag `v*`.
 # Auth: npm Trusted Publishing (OIDC) — sin token guardado en el repo.
-# El mismo run adjunta un fallback sin registry (cli.tgz + install.sh) a la
-# GitHub Release de ESTE repo (no toca las releases de Scrakk Studio).
+# El mismo run adjunta a la GitHub Release de ESTE repo:
+#   - cli.tgz + install.sh  (fallback sin registry, requiere Node)
+#   - binarios standalone   (fallback sin Node)
+# No toca las releases de Scrakk Studio.
 
 name: publish
 
@@ -16,7 +18,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # adjuntar el fallback a la GitHub Release
+  contents: write # adjuntar los fallbacks a la GitHub Release
   id-token: write # OIDC para Trusted Publishing
 
 jobs:
@@ -47,13 +49,20 @@ jobs:
           npm pack
           mv scrakk-official-cli-*.tgz cli.tgz
 
-      # Fallback: tarball descargable en la Release de este repo.
-      - name: Attach release asset
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Binarios standalone (sin Node)
+        run: bun scripts/build-binaries.mjs
+
+      # Fallback: binarios descargables en la Release de este repo.
+      - name: Attach release assets
         uses: softprops/action-gh-release@v2
         with:
           files: |
             cli.tgz
-            install.sh
+            release/*
 
       # Principal: publicar a npm via Trusted Publishing (OIDC, sin token).
       - name: Publish to npm

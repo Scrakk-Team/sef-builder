@@ -31,3 +31,33 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # La ruta `Bun.build` (usada por el binario standalone) no la cubre Node:
+  # acá se ejercita de punta a punta y se comprueba que los binarios compilan.
+  bun:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Instalar dependencias
+        run: bun install --no-save
+
+      - name: Smoke test (ruta Bun.build)
+        run: |
+          bun run src/index.ts create "Bun Smoke" /tmp/bun-smoke
+          bun run src/index.ts build /tmp/bun-smoke/bun-smoke
+          bun run src/index.ts pack /tmp/bun-smoke/bun-smoke
+          test -f /tmp/bun-smoke/bun-smoke.sef
+
+      - name: Compilar binarios standalone
+        run: bun scripts/build-binaries.mjs
+
+      - name: Smoke del binario (sin node_modules)
+        run: |
+          cd /tmp
+          "$GITHUB_WORKSPACE/release/sef-linux-x64" --version
+          "$GITHUB_WORKSPACE/release/sef-linux-x64" build /tmp/bun-smoke/bun-smoke

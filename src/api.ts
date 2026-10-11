@@ -96,8 +96,42 @@ export async function buildBundle(packageRoot: string): Promise<{ outPath: strin
   const codePaths = collectCodePaths(manifest)
 
   const entry = generateModulesEntry(codePaths)
-  const esbuild = await import('esbuild')
+  const compiled = await compileEntry(entry, packageRoot)
 
+  const outPath = path.join(packageRoot, SEF.ENTRY)
+  await fs.mkdir(path.dirname(outPath), { recursive: true })
+  await fs.writeFile(outPath, compiled)
+  return { outPath, modules: codePaths }
+}
+
+/** Mínimo de `Bun.build` que usamos (para no depender de los tipos de Bun). */
+interface BunLike {
+  build(options: {
+    entrypoints: string[]
+    format?: string
+    target?: string
+    external?: string[]
+    define?: Record<string, string>
+  }): Promise<{
+    success: boolean
+    logs: unknown[]
+    outputs: Array<{ arrayBuffer(): Promise<ArrayBuffer> }>
+  }>
+}
+
+/**
+ * Compila el entry virtual a ESM.
+ *
+ * En Node usa **esbuild**; en un binario compilado con Bun (donde esbuild no
+ * existe en disco) usa el bundler nativo **`Bun.build`**, con las mismas
+ * opciones (ESM, browser, react/react-dom external). El resultado es el mismo
+ * contrato: un archivo que exporta `modules`.
+ */
+async function compileEntry(entry: string, packageRoot: string): Promise<Uint8Array> {
+  const bun = (globalThis as { Bun?: BunLike }).Bun
+  if (bun) return compileWithBun(bun, entry, packageRoot)
+
+  const esbuild = await import('esbuild')
   const result = await esbuild.build({
     stdin: {
       contents: entry,
@@ -113,11 +147,37 @@ export async function buildBundle(packageRoot: string): Promise<{ outPath: strin
     logLevel: 'silent',
     external: ['react', 'react-dom']
   })
+  return result.outputFiles![0].contents
+}
 
-  const outPath = path.join(packageRoot, SEF.ENTRY)
-  await fs.mkdir(path.dirname(outPath), { recursive: true })
-  await fs.writeFile(outPath, result.outputFiles![0].contents)
-  return { outPath, modules: codePaths }
+/**
+ * `Bun.build` resuelve los imports relativos a un archivo real, así que el
+ * entry virtual se escribe temporalmente dentro del paquete y se borra siempre
+ * (nunca entra al `.sef`, que solo empaqueta manifest + dist + data).
+ */
+async function compileWithBun(
+  bun: BunLike,
+  entry: string,
+  packageRoot: string
+): Promise<Uint8Array> {
+  const entryFile = path.join(packageRoot, '.sef-entry.tsx')
+  await fs.writeFile(entryFile, entry)
+  try {
+    const result = await bun.build({
+      entrypoints: [entryFile],
+      format: 'esm',
+      target: 'browser',
+      external: ['react', 'react-dom'],
+      // NODE_ENV=production → `react/jsx-runtime` (como esbuild), no jsx-dev.
+      define: { 'process.env.NODE_ENV': '"production"' }
+    })
+    if (!result.success || result.outputs.length === 0) {
+      throw new Error('Bun.build falló: ' + result.logs.map(String).join(' '))
+    }
+    return new Uint8Array(await result.outputs[0].arrayBuffer())
+  } finally {
+    await fs.rm(entryFile, { force: true })
+  }
 }
 
 // ── pack ───────────────────────────────────────────────────────────────────

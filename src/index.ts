@@ -28,7 +28,12 @@ opciones:
   -v, --version                       versión del CLI
   -h, --help                          esta ayuda`
 
+declare const __SEF_VERSION__: string | undefined
+
 async function readVersion(): Promise<string> {
+  // En el bundle/binary la versión viene inyectada en build-time; en `src/`
+  // (Node directo) cae al `package.json`.
+  if (typeof __SEF_VERSION__ === 'string') return __SEF_VERSION__
   try {
     const url = new URL('../package.json', import.meta.url)
     const raw = await fs.readFile(url, 'utf-8')
