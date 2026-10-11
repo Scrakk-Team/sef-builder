@@ -18,12 +18,18 @@ npx @scrakk-official/cli build ./ext     # on demand
 
 ### Without the npm registry
 
-You do **not** need the package published: install it straight from GitHub —
-npm clones the repo and builds it locally:
+You do **not** need the package published: install the tarball attached to the
+latest GitHub Release (npm downloads a ready-made bundle, it builds nothing):
+
+```sh
+npm install -g https://github.com/Scrakk-Team/sef-builder/releases/latest/download/cli.tgz
+npx https://github.com/Scrakk-Team/sef-builder/releases/latest/download/cli.tgz build ./ext
+```
+
+Or let npm clone the repo itself and build it (standard npm):
 
 ```sh
 npm install -g github:Scrakk-Team/sef-builder
-npx github:Scrakk-Team/sef-builder build ./ext   # or run it without installing
 ```
 
 ## Usage

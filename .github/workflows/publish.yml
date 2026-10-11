@@ -65,5 +65,9 @@ jobs:
             release/*
 
       # Principal: publicar a npm via Trusted Publishing (OIDC, sin token).
+      # `continue-on-error` hasta que el Trusted Publisher esté configurado en
+      # npm (si no, el resto del pipeline —y la Release— queda en rojo).
+      # TODO: quitar `continue-on-error` cuando npm esté listo.
       - name: Publish to npm
+        continue-on-error: true
         run: npm publish --provenance --access public
