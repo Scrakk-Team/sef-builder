@@ -32,6 +32,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: dist/ sin desincronizar
+        run: git diff --exit-code -- dist
+
   # La ruta `Bun.build` (usada por el binario standalone) no la cubre Node:
   # acá se ejercita de punta a punta y se comprueba que los binarios compilan.
   bun:

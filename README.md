@@ -81,6 +81,11 @@ npm run build      # bundles src/ → dist/index.js
 node dist/index.js --help
 ```
 
+`dist/` **is committed** (13 KB) so `npm install -g github:Scrakk-Team/sef-builder`
+works without a build step — npm's git-dependency flow runs `prepare` before the
+dependencies are available, so building at install time is not reliable. CI fails
+if `dist/` is stale: always `npm run build` before committing.
+
 Layout: `src/config.ts` (conventions), `src/schema.ts` (validation),
 `src/api.ts` (create/build/pack), `src/index.ts` (CLI surface),
 `src/version.ts` (semver-lite helper), `tests/` (end-to-end suite).
