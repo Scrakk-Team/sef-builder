@@ -163,6 +163,47 @@ describe('build + pack E2E', () => {
 
     await expect(packSef(root)).rejects.toThrow(/validación/)
   })
+
+  it('deja los módulos del IDE como external (no los empaqueta)', async () => {
+    // Un panel con los hooks documentados: antes el build moría con
+    // `Could not resolve "@features/layout"`.
+    const root = path.join(workDir!, 'hooks')
+    await fs.mkdir(path.join(root, 'panels'), { recursive: true })
+    await fs.writeFile(
+      path.join(root, 'manifest.json'),
+      JSON.stringify({
+        id: 'hooks-ext',
+        name: 'Hooks Ext',
+        version: '1.0.0',
+        entry: 'dist/modules.js',
+        contributes: {
+          panels: [{ id: 'hooks-panel', title: 'Hooks', component: 'panels/Panel.tsx' }]
+        }
+      })
+    )
+    await fs.writeFile(
+      path.join(root, 'panels', 'Panel.tsx'),
+      `import { useEffect } from 'react'
+import { usePanelTitle } from '@features/layout'
+
+export default function Panel() {
+  const { setTitle } = usePanelTitle()
+  useEffect(() => { setTitle('Hooks') }, [setTitle])
+  return <div>ok</div>
+}
+`
+    )
+
+    const built = await buildBundle(root)
+    expect(built.modules).toEqual(['panels/Panel.tsx'])
+
+    const bundle = await fs.readFile(built.outPath, 'utf-8')
+    // El IDE los presta: el bundle los IMPORTA, no los trae adentro.
+    expect(bundle).toMatch(/from\s*["']@features\/layout["']/)
+    expect(bundle).toMatch(/from\s*["']react\/jsx-runtime["']/)
+    // Y no hay copia propia de React empaquetada.
+    expect(bundle).not.toMatch(/react\.production|createElement\(/)
+  }, 30_000)
 })
 
 describe('generateModulesEntry', () => {

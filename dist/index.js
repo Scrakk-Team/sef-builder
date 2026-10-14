@@ -26,6 +26,14 @@ var SEF = {
   EXTENSION_EXT: ".sef"
 };
 var ID_RE = /^[a-z0-9][a-z0-9._-]*$/i;
+var RUNTIME_EXTERNALS = [
+  "react",
+  "react-dom",
+  "react-dom/client",
+  "react/jsx-runtime",
+  "react/jsx-dev-runtime",
+  "@features/layout"
+];
 function collectCodePaths(manifest) {
   const contributes = manifest.contributes ?? {};
   const paths = [];
@@ -294,7 +302,7 @@ async function compileEntry(entry, packageRoot) {
     target: "es2022",
     write: false,
     logLevel: "silent",
-    external: ["react", "react-dom"]
+    external: [...RUNTIME_EXTERNALS]
   });
   return result.outputFiles[0].contents;
 }
@@ -306,7 +314,7 @@ async function compileWithBun(bun, entry, packageRoot) {
       entrypoints: [entryFile],
       format: "esm",
       target: "browser",
-      external: ["react", "react-dom"],
+      external: [...RUNTIME_EXTERNALS],
       // NODE_ENV=production → `react/jsx-runtime` (como esbuild), no jsx-dev.
       define: { "process.env.NODE_ENV": '"production"' }
     });

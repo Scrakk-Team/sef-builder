@@ -29,6 +29,26 @@ export const SEF = {
 /** Id válido de extensión/server (mismo criterio que main al instalar). */
 export const ID_RE = /^[a-z0-9][a-z0-9._-]*$/i
 
+/**
+ * Módulos que el IDE le PRESTA al bundle: nunca se empaquetan.
+ *
+ * Si se empaquetaran, la extensión se quedaría con su PROPIA copia de React (los
+ * hooks no compartirían el dispatcher del IDE) y —peor— el build de un panel que
+ * usa los hooks documentados (`@features/layout`) fallaba directamente con
+ * `Could not resolve "@features/layout"`, porque no era un specifier externo.
+ *
+ * El loader del IDE reescribe estos specifiers a los módulos reales de la app
+ * (ver `runtime/bridge` y `loader/externals` en BorealChat).
+ */
+export const RUNTIME_EXTERNALS = [
+  'react',
+  'react-dom',
+  'react-dom/client',
+  'react/jsx-runtime',
+  'react/jsx-dev-runtime',
+  '@features/layout'
+] as const
+
 /** Rutas de código (componentes) referenciables desde contributes. */
 export function collectCodePaths(manifest: Record<string, unknown>): string[] {
   const contributes = (manifest.contributes ?? {}) as Record<string, unknown>

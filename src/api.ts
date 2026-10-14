@@ -13,7 +13,7 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import { zipSync, type Zippable } from 'fflate'
-import { SEF, collectCodePaths } from './config.ts'
+import { SEF, collectCodePaths, RUNTIME_EXTERNALS } from './config.ts'
 import { validatePackage } from './schema.ts'
 
 // ── create ─────────────────────────────────────────────────────────────────
@@ -124,8 +124,8 @@ interface BunLike {
  *
  * En Node usa **esbuild**; en un binario compilado con Bun (donde esbuild no
  * existe en disco) usa el bundler nativo **`Bun.build`**, con las mismas
- * opciones (ESM, browser, react/react-dom external). El resultado es el mismo
- * contrato: un archivo que exporta `modules`.
+ * opciones (ESM, browser, y los módulos del IDE como `external`). El resultado
+ * es el mismo contrato: un archivo que exporta `modules`.
  */
 async function compileEntry(entry: string, packageRoot: string): Promise<Uint8Array> {
   const bun = (globalThis as { Bun?: BunLike }).Bun
@@ -145,7 +145,7 @@ async function compileEntry(entry: string, packageRoot: string): Promise<Uint8Ar
     target: 'es2022',
     write: false,
     logLevel: 'silent',
-    external: ['react', 'react-dom']
+    external: [...RUNTIME_EXTERNALS]
   })
   return result.outputFiles![0].contents
 }
@@ -167,7 +167,7 @@ async function compileWithBun(
       entrypoints: [entryFile],
       format: 'esm',
       target: 'browser',
-      external: ['react', 'react-dom'],
+      external: [...RUNTIME_EXTERNALS],
       // NODE_ENV=production → `react/jsx-runtime` (como esbuild), no jsx-dev.
       define: { 'process.env.NODE_ENV': '"production"' }
     })
