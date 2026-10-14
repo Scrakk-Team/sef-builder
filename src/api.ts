@@ -198,6 +198,15 @@ export async function packSef(packageRoot: string): Promise<string> {
 
   const files: Zippable = {}
 
+  /**
+   * Los módulos que el manifest referencia (componentes, iconos) YA viajan
+   * compilados en `dist/`: si además caen dentro de una carpeta de datos
+   * (un icono de activityBar en `icons/`, como documenta la guía), mandarlos
+   * otra vez sin compilar solo engorda el `.sef` y filtra el fuente.
+   */
+  const manifestRaw = await fs.readFile(path.join(packageRoot, SEF.MANIFEST), 'utf-8')
+  const codePaths = new Set(collectCodePaths(JSON.parse(manifestRaw) as Record<string, unknown>))
+
   const addDir = async (dir: string, zipPrefix: string): Promise<void> => {
     let entries: import('node:fs').Dirent[]
     try {
@@ -210,7 +219,7 @@ export async function packSef(packageRoot: string): Promise<string> {
       const key = zipPrefix ? `${zipPrefix}/${entry.name}` : entry.name
       if (entry.isDirectory()) {
         await addDir(full, key)
-      } else {
+      } else if (!codePaths.has(key)) {
         files[key] = new Uint8Array(await fs.readFile(full))
       }
     }

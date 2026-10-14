@@ -164,6 +164,52 @@ describe('build + pack E2E', () => {
     await expect(packSef(root)).rejects.toThrow(/validación/)
   })
 
+  it('no empaqueta el fuente de los módulos que ya van compilados', async () => {
+    const root = path.join(workDir!, 'icon-module')
+    await fs.mkdir(path.join(root, 'icons'), { recursive: true })
+    await fs.mkdir(path.join(root, 'panels'), { recursive: true })
+    await fs.writeFile(
+      path.join(root, 'manifest.json'),
+      JSON.stringify({
+        id: 'icon-module-ext',
+        name: 'Icon Module',
+        version: '1.0.0',
+        entry: 'dist/modules.js',
+        contributes: {
+          panels: [{ id: 'p', title: 'P', component: 'panels/Panel.tsx' }],
+          activityBar: [
+            {
+              id: 'b',
+              label: 'B',
+              icon: 'icons/icon.tsx',
+              side: 'left',
+              target: 'left',
+              panelId: 'p'
+            }
+          ]
+        }
+      })
+    )
+    await fs.writeFile(
+      path.join(root, 'panels', 'Panel.tsx'),
+      'export default function Panel() { return <div /> }\n'
+    )
+    await fs.writeFile(
+      path.join(root, 'icons', 'icon.tsx'),
+      'export default function Icon() { return <svg /> }\n'
+    )
+
+    await buildBundle(root)
+    const sefPath = await packSef(root)
+    const zip = unzipSync(new Uint8Array(await fs.readFile(sefPath)))
+    const names = Object.keys(zip)
+
+    // El módulo del icono viaja compilado en dist/ (el .tsx no se manda dos veces).
+    expect(names).toContain('dist/modules.js')
+    expect(names).not.toContain('icons/icon.tsx')
+    expect(names).not.toContain('panels/Panel.tsx')
+  }, 30_000)
+
   it('deja los módulos del IDE como external (no los empaqueta)', async () => {
     // Un panel con los hooks documentados: antes el build moría con
     // `Could not resolve "@features/layout"`.

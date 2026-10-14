@@ -334,6 +334,8 @@ async function packSef(packageRoot) {
     );
   }
   const files = {};
+  const manifestRaw = await fs2.readFile(path2.join(packageRoot, SEF.MANIFEST), "utf-8");
+  const codePaths = new Set(collectCodePaths(JSON.parse(manifestRaw)));
   const addDir = async (dir, zipPrefix) => {
     let entries;
     try {
@@ -346,7 +348,7 @@ async function packSef(packageRoot) {
       const key = zipPrefix ? `${zipPrefix}/${entry.name}` : entry.name;
       if (entry.isDirectory()) {
         await addDir(full, key);
-      } else {
+      } else if (!codePaths.has(key)) {
         files[key] = new Uint8Array(await fs2.readFile(full));
       }
     }
