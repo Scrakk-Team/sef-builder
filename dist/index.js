@@ -380,7 +380,7 @@ opciones:
   -v, --version                       versi\xF3n del CLI
   -h, --help                          esta ayuda`;
 async function readVersion() {
-  if (true) return "0.1.0";
+  if (true) return "0.1.1";
   try {
     const url = new URL("../package.json", import.meta.url);
     const raw = await fs3.readFile(url, "utf-8");
