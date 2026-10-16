@@ -233,6 +233,20 @@ export async function packSef(packageRoot: string): Promise<string> {
   // Escenas de eventos: sin esto el pack se valida pero el `.sef` sale sin la
   // coreografía (el IDE registra el evento y no encuentra su escena).
   await addDir(path.join(packageRoot, SEF.EVENTS_DIR), SEF.EVENTS_DIR)
+  // Recursos del paquete: el audio de un evento (`.ogg`) no es código, viaja
+  // tal cual. Sin esta línea el evento suena a silencio.
+  await addDir(path.join(packageRoot, SEF.ASSETS_DIR), SEF.ASSETS_DIR)
+
+  // Atribuciones y legales: si el pack usa material de terceros (audio CC BY,
+  // una fuente con licencia…), el aviso tiene que VIAJAR con él — la licencia lo
+  // exige, y un `.sef` suelto sin su CREDITS no cumple.
+  for (const name of ['CREDITS.md', 'CREDITS.txt', 'LICENSE', 'LICENSE.md', 'LICENSE.txt']) {
+    try {
+      files[name] = new Uint8Array(await fs.readFile(path.join(packageRoot, name)))
+    } catch {
+      // Opcional: la mayoría de los packs no lo trae.
+    }
+  }
   files[SEF.MANIFEST] = new Uint8Array(
     await fs.readFile(path.join(packageRoot, SEF.MANIFEST))
   )

@@ -220,8 +220,11 @@ export async function validatePackage(rootDir: string): Promise<ValidationIssue[
       })
       continue
     }
-    // Escena inline: no hay archivo que verificar.
-    if (typeof event.path !== 'string') continue
+    // Escena inline: no hay archivo que verificar... pero sí sus recursos.
+    if (typeof event.path !== 'string') {
+      await checkEventAssets(rootDir, event.scene, issues)
+      continue
+    }
 
     let sceneRaw: string
     try {
@@ -245,7 +248,31 @@ export async function validatePackage(rootDir: string): Promise<ValidationIssue[
     if (!Array.isArray(scene.timeline)) {
       issues.push({ field: event.path, message: 'la escena necesita "timeline" (array de ops)' })
     }
+    await checkEventAssets(rootDir, scene, issues)
   }
 
   return issues
+}
+
+/**
+ * Los sonidos de la escena que apunten a un ARCHIVO tienen que existir: una ruta
+ * mal escrita es un evento silencioso, y eso no se nota hasta el día del evento.
+ */
+async function checkEventAssets(
+  rootDir: string,
+  scene: unknown,
+  issues: ValidationIssue[]
+): Promise<void> {
+  if (!scene || typeof scene !== 'object') return
+  const sounds = (scene as { sounds?: unknown }).sounds
+  if (!sounds || typeof sounds !== 'object') return
+  for (const [key, value] of Object.entries(sounds as Record<string, unknown>)) {
+    const file = (value as { file?: unknown } | null)?.file
+    if (typeof file !== 'string' || !file) continue
+    try {
+      await fs.access(path.join(rootDir, file))
+    } catch {
+      issues.push({ field: file, message: `sonido "${key}": el archivo no existe en el paquete` })
+    }
+  }
 }

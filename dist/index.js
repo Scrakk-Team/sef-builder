@@ -24,6 +24,8 @@ var SEF = {
   LSP_DIR: "lsp",
   /** Escenas de eventos (`contributes.events` → `path`). */
   EVENTS_DIR: "events",
+  /** Recursos del paquete (audio de eventos, imágenes…). */
+  ASSETS_DIR: "assets",
   /** Extensión de paquete instalable. */
   EXTENSION_EXT: ".sef"
 };
@@ -230,7 +232,10 @@ async function validatePackage(rootDir) {
       });
       continue;
     }
-    if (typeof event.path !== "string") continue;
+    if (typeof event.path !== "string") {
+      await checkEventAssets(rootDir, event.scene, issues);
+      continue;
+    }
     let sceneRaw;
     try {
       sceneRaw = await fs.readFile(path.join(rootDir, event.path), "utf-8");
@@ -251,8 +256,23 @@ async function validatePackage(rootDir) {
     if (!Array.isArray(scene.timeline)) {
       issues.push({ field: event.path, message: 'la escena necesita "timeline" (array de ops)' });
     }
+    await checkEventAssets(rootDir, scene, issues);
   }
   return issues;
+}
+async function checkEventAssets(rootDir, scene, issues) {
+  if (!scene || typeof scene !== "object") return;
+  const sounds = scene.sounds;
+  if (!sounds || typeof sounds !== "object") return;
+  for (const [key, value] of Object.entries(sounds)) {
+    const file = value?.file;
+    if (typeof file !== "string" || !file) continue;
+    try {
+      await fs.access(path.join(rootDir, file));
+    } catch {
+      issues.push({ field: file, message: `sonido "${key}": el archivo no existe en el paquete` });
+    }
+  }
 }
 
 // src/api.ts
@@ -402,6 +422,13 @@ async function packSef(packageRoot) {
   await addDir(path2.join(packageRoot, SEF.PRODUCT_ICONS_DIR), SEF.PRODUCT_ICONS_DIR);
   await addDir(path2.join(packageRoot, SEF.LSP_DIR), SEF.LSP_DIR);
   await addDir(path2.join(packageRoot, SEF.EVENTS_DIR), SEF.EVENTS_DIR);
+  await addDir(path2.join(packageRoot, SEF.ASSETS_DIR), SEF.ASSETS_DIR);
+  for (const name of ["CREDITS.md", "CREDITS.txt", "LICENSE", "LICENSE.md", "LICENSE.txt"]) {
+    try {
+      files[name] = new Uint8Array(await fs2.readFile(path2.join(packageRoot, name)));
+    } catch {
+    }
+  }
   files[SEF.MANIFEST] = new Uint8Array(
     await fs2.readFile(path2.join(packageRoot, SEF.MANIFEST))
   );
@@ -424,7 +451,7 @@ opciones:
   -v, --version                       versi\xF3n del CLI
   -h, --help                          esta ayuda`;
 async function readVersion() {
-  if (true) return "0.1.2";
+  if (true) return "0.1.3";
   try {
     const url = new URL("../package.json", import.meta.url);
     const raw = await fs3.readFile(url, "utf-8");

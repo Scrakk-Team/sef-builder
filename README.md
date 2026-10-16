@@ -66,8 +66,10 @@ Collected paths: `panels[].component`, `activityBar[].icon`,
 ### `pack`
 
 Validates first; on errors it does not pack. Zips the manifest + `dist/` + the
-data folders (`themes/`, `icons/`, `productIcons/`, `lsp/`, `events/`) into
-`<packageRoot>.sef` (next to the package folder).
+data folders (`themes/`, `icons/`, `productIcons/`, `lsp/`, `events/`) and the
+pack's `assets/` — plus `CREDITS.md` / `LICENSE*`, so the attribution of any
+third-party asset travels with the package — into `<packageRoot>.sef` (next to
+the package folder).
 
 ### `validate`
 
@@ -76,7 +78,7 @@ Checks (mirroring the core's runtime rules): `id` matches
 `runtime` a `{ entry: string }`; `permissions` in the catalogue; `contributes`
 exists with only known kinds; every referenced code path exists; themes/icons
 without `path` have their conventional file; event scenes have `specVersion` and
-`timeline`.
+`timeline`, and the audio they reference exists.
 
 ## Development
 

@@ -24,6 +24,8 @@ export const SEF = {
   LSP_DIR: 'lsp',
   /** Escenas de eventos (`contributes.events` → `path`). */
   EVENTS_DIR: 'events',
+  /** Recursos del paquete (audio de eventos, imágenes…). */
+  ASSETS_DIR: 'assets',
   /** Extensión de paquete instalable. */
   EXTENSION_EXT: '.sef'
 } as const

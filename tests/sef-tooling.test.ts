@@ -414,4 +414,66 @@ describe('kinds: fileHandlers y events', () => {
     expect(names).toContain('manifest.json')
     expect(names).toContain('events/night.json')
   })
+
+  it('pack INCLUYE la carpeta assets/ (el audio del evento)', async () => {
+    const root = path.join(workDir!, 'event-audio')
+    await fs.mkdir(path.join(root, 'events'), { recursive: true })
+    await fs.mkdir(path.join(root, 'assets'), { recursive: true })
+    await fs.writeFile(
+      path.join(root, 'manifest.json'),
+      JSON.stringify({
+        id: 'pack-audio',
+        name: 'Pack Audio',
+        version: '0.1.0',
+        contributes: {
+          events: [{ id: 'pack-audio.night', name: 'Night', path: 'events/night.json' }]
+        }
+      })
+    )
+    await fs.writeFile(
+      path.join(root, 'events', 'night.json'),
+      JSON.stringify({
+        specVersion: 1,
+        sounds: { trueno: { file: 'assets/trueno.ogg', gain: 0.5 } },
+        timeline: [{ op: 'audio.play', sound: 'trueno' }]
+      })
+    )
+    await fs.writeFile(path.join(root, 'assets', 'trueno.ogg'), 'OggS falso pero existente')
+    await fs.writeFile(path.join(root, 'CREDITS.md'), '# Créditos\n- trueno: alguien (CC BY)')
+
+    expect(await validatePackage(root)).toEqual([])
+
+    const out = await packSef(root)
+    const names = Object.keys(unzipSync(new Uint8Array(await fs.readFile(out))))
+    expect(names).toContain('assets/trueno.ogg')
+    // La atribución viaja con el paquete (una licencia CC BY la exige).
+    expect(names).toContain('CREDITS.md')
+  })
+
+  it('un sonido que apunta a un archivo inexistente se reporta', async () => {
+    const root = path.join(workDir!, 'event-audio-roto')
+    await fs.mkdir(path.join(root, 'events'), { recursive: true })
+    await fs.writeFile(
+      path.join(root, 'manifest.json'),
+      JSON.stringify({
+        id: 'pack-audio-roto',
+        name: 'Roto',
+        version: '0.1.0',
+        contributes: {
+          events: [{ id: 'pack-audio-roto.night', name: 'Night', path: 'events/night.json' }]
+        }
+      })
+    )
+    await fs.writeFile(
+      path.join(root, 'events', 'night.json'),
+      JSON.stringify({
+        specVersion: 1,
+        sounds: { trueno: { file: 'assets/falta.ogg' } },
+        timeline: [{ op: 'audio.play', sound: 'trueno' }]
+      })
+    )
+
+    const issues = await validatePackage(root)
+    expect(issues.some((i) => i.field === 'assets/falta.ogg')).toBe(true)
+  })
 })
