@@ -22,6 +22,8 @@ var SEF = {
   ICONS_DIR: "icons",
   PRODUCT_ICONS_DIR: "productIcons",
   LSP_DIR: "lsp",
+  /** Escenas de eventos (`contributes.events` → `path`). */
+  EVENTS_DIR: "events",
   /** Extensión de paquete instalable. */
   EXTENSION_EXT: ".sef"
 };
@@ -123,7 +125,9 @@ function validateManifest(manifest) {
     "notifications",
     "encodings",
     "tools",
-    "skills"
+    "skills",
+    "fileHandlers",
+    "events"
   ];
   for (const key of Object.keys(c)) {
     if (!KNOWN_KINDS.includes(key)) {
@@ -207,6 +211,45 @@ async function validatePackage(rootDir) {
         field: expected,
         message: 'tema de iconos sin "path" \u2192 se esperaba archivo por convenci\xF3n'
       });
+    }
+  }
+  const events = manifest.contributes?.events ?? [];
+  for (const event of events) {
+    const label = `${SEF.EVENTS_DIR}/${String(event.id ?? "?")}.json`;
+    if (typeof event.id !== "string" || typeof event.name !== "string") {
+      issues.push({
+        field: `${SEF.EVENTS_DIR} (${String(event.id ?? "?")})`,
+        message: 'un evento necesita "id" y "name"'
+      });
+      continue;
+    }
+    if (typeof event.path !== "string" && event.scene === void 0) {
+      issues.push({
+        field: label,
+        message: 'un evento necesita "path" (archivo del paquete) o "scene" (inline)'
+      });
+      continue;
+    }
+    if (typeof event.path !== "string") continue;
+    let sceneRaw;
+    try {
+      sceneRaw = await fs.readFile(path.join(rootDir, event.path), "utf-8");
+    } catch {
+      issues.push({ field: event.path, message: "escena del evento no encontrada" });
+      continue;
+    }
+    let scene;
+    try {
+      scene = JSON.parse(sceneRaw);
+    } catch (error) {
+      issues.push({ field: event.path, message: `escena con JSON inv\xE1lido: ${String(error)}` });
+      continue;
+    }
+    if (typeof scene.specVersion !== "number") {
+      issues.push({ field: event.path, message: 'la escena necesita "specVersion" (hoy: 1)' });
+    }
+    if (!Array.isArray(scene.timeline)) {
+      issues.push({ field: event.path, message: 'la escena necesita "timeline" (array de ops)' });
     }
   }
   return issues;
@@ -358,6 +401,7 @@ async function packSef(packageRoot) {
   await addDir(path2.join(packageRoot, SEF.ICONS_DIR), SEF.ICONS_DIR);
   await addDir(path2.join(packageRoot, SEF.PRODUCT_ICONS_DIR), SEF.PRODUCT_ICONS_DIR);
   await addDir(path2.join(packageRoot, SEF.LSP_DIR), SEF.LSP_DIR);
+  await addDir(path2.join(packageRoot, SEF.EVENTS_DIR), SEF.EVENTS_DIR);
   files[SEF.MANIFEST] = new Uint8Array(
     await fs2.readFile(path2.join(packageRoot, SEF.MANIFEST))
   );
@@ -380,7 +424,7 @@ opciones:
   -v, --version                       versi\xF3n del CLI
   -h, --help                          esta ayuda`;
 async function readVersion() {
-  if (true) return "0.1.1";
+  if (true) return "0.1.2";
   try {
     const url = new URL("../package.json", import.meta.url);
     const raw = await fs3.readFile(url, "utf-8");

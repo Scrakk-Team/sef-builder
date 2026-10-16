@@ -89,7 +89,9 @@ export function validateManifest(manifest: Record<string, unknown>): ValidationI
     'notifications',
     'encodings',
     'tools',
-    'skills'
+    'skills',
+    'fileHandlers',
+    'events'
   ]
   for (const key of Object.keys(c)) {
     if (!KNOWN_KINDS.includes(key)) {
@@ -193,6 +195,55 @@ export async function validatePackage(rootDir: string): Promise<ValidationIssue[
         field: expected,
         message: 'tema de iconos sin "path" → se esperaba archivo por convención'
       })
+    }
+  }
+
+  // Events: cada evento necesita `path` (un archivo del paquete) o `scene`
+  // inline, y su escena un `timeline` y un `specVersion`. El IDE descarta lo
+  // inválido sin romperse, pero acá se avisa ANTES de empaquetar: el error
+  // temprano es justamente el punto del CLI.
+  const events = ((manifest.contributes as Record<string, unknown>)?.events ??
+    []) as Array<{ id?: unknown; name?: unknown; path?: unknown; scene?: unknown }>
+  for (const event of events) {
+    const label = `${SEF.EVENTS_DIR}/${String(event.id ?? '?')}.json`
+    if (typeof event.id !== 'string' || typeof event.name !== 'string') {
+      issues.push({
+        field: `${SEF.EVENTS_DIR} (${String(event.id ?? '?')})`,
+        message: 'un evento necesita "id" y "name"'
+      })
+      continue
+    }
+    if (typeof event.path !== 'string' && event.scene === undefined) {
+      issues.push({
+        field: label,
+        message: 'un evento necesita "path" (archivo del paquete) o "scene" (inline)'
+      })
+      continue
+    }
+    // Escena inline: no hay archivo que verificar.
+    if (typeof event.path !== 'string') continue
+
+    let sceneRaw: string
+    try {
+      sceneRaw = await fs.readFile(path.join(rootDir, event.path), 'utf-8')
+    } catch {
+      issues.push({ field: event.path, message: 'escena del evento no encontrada' })
+      continue
+    }
+
+    let scene: Record<string, unknown>
+    try {
+      scene = JSON.parse(sceneRaw) as Record<string, unknown>
+    } catch (error) {
+      issues.push({ field: event.path, message: `escena con JSON inválido: ${String(error)}` })
+      continue
+    }
+
+    if (typeof scene.specVersion !== 'number') {
+      issues.push({ field: event.path, message: 'la escena necesita "specVersion" (hoy: 1)' })
+    }
+    if (!Array.isArray(scene.timeline)) {
+      issues.push({ field: event.path, message: 'la escena necesita "timeline" (array de ops)' })
     }
   }
 

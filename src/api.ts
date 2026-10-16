@@ -7,7 +7,7 @@
  *
  * - build: genera el mapa `modules` desde el manifest (nada hardcodeado) y
  *   compila con esbuild a dist/modules.js.
- * - pack: zipea manifest + dist + carpetas de data (themes/, lsp/) → .sef.
+ * - pack: zipea manifest + dist + carpetas de data (themes/, icons/, events/) → .sef.
  */
 
 import * as fs from 'node:fs/promises'
@@ -230,6 +230,9 @@ export async function packSef(packageRoot: string): Promise<string> {
   await addDir(path.join(packageRoot, SEF.ICONS_DIR), SEF.ICONS_DIR)
   await addDir(path.join(packageRoot, SEF.PRODUCT_ICONS_DIR), SEF.PRODUCT_ICONS_DIR)
   await addDir(path.join(packageRoot, SEF.LSP_DIR), SEF.LSP_DIR)
+  // Escenas de eventos: sin esto el pack se valida pero el `.sef` sale sin la
+  // coreografía (el IDE registra el evento y no encuentra su escena).
+  await addDir(path.join(packageRoot, SEF.EVENTS_DIR), SEF.EVENTS_DIR)
   files[SEF.MANIFEST] = new Uint8Array(
     await fs.readFile(path.join(packageRoot, SEF.MANIFEST))
   )

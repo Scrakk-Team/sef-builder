@@ -269,3 +269,149 @@ describe('generateModulesEntry', () => {
     expect(entry).toContain('export const modules = {}')
   })
 })
+
+describe('kinds: fileHandlers y events', () => {
+  it('acepta fileHandlers (kind declarativo del IDE)', () => {
+    const issues = validateManifest({
+      id: 'x',
+      name: 'X',
+      version: '0.1.0',
+      contributes: { fileHandlers: [{ id: 'x.csv', title: 'CSV', extensions: ['.csv'] }] }
+    })
+    expect(issues).toEqual([])
+  })
+
+  it('acepta events (kind declarativo del IDE)', () => {
+    const issues = validateManifest({
+      id: 'x',
+      name: 'X',
+      version: '0.1.0',
+      contributes: {
+        events: [{ id: 'x.night', name: 'Night', scene: { specVersion: 1, timeline: [] } }]
+      }
+    })
+    expect(issues).toEqual([])
+  })
+
+  it('un evento inline (scene) no necesita archivo', async () => {
+    const root = path.join(workDir!, 'event-inline')
+    await fs.mkdir(root, { recursive: true })
+    await fs.writeFile(
+      path.join(root, 'manifest.json'),
+      JSON.stringify({
+        id: 'inline-pack',
+        name: 'Inline',
+        version: '0.1.0',
+        contributes: {
+          events: [
+            { id: 'inline-pack.night', name: 'Night', scene: { specVersion: 1, timeline: [{ op: 'stage.fog' }] } }
+          ]
+        }
+      })
+    )
+    expect(await validatePackage(root)).toEqual([])
+  })
+
+  it('un evento sin id/name, o sin path ni scene, se rechaza', async () => {
+    const root = path.join(workDir!, 'event-broken')
+    await fs.mkdir(root, { recursive: true })
+    await fs.writeFile(
+      path.join(root, 'manifest.json'),
+      JSON.stringify({
+        id: 'broken-pack',
+        name: 'Broken',
+        version: '0.1.0',
+        contributes: {
+          events: [{ name: 'Sin id' }, { id: 'broken-pack.sin', name: 'Sin escena' }]
+        }
+      })
+    )
+    const issues = await validatePackage(root)
+    expect(issues.length).toBe(2)
+    expect(issues[0].message).toContain('"id" y "name"')
+    expect(issues[1].message).toContain('"path"')
+  })
+
+  it('la escena por path tiene que existir y traer specVersion + timeline', async () => {
+    const root = path.join(workDir!, 'event-path')
+    await fs.mkdir(path.join(root, 'events'), { recursive: true })
+    await fs.writeFile(
+      path.join(root, 'manifest.json'),
+      JSON.stringify({
+        id: 'path-pack',
+        name: 'Path',
+        version: '0.1.0',
+        contributes: {
+          events: [
+            { id: 'path-pack.falta', name: 'Falta', path: 'events/falta.json' },
+            { id: 'path-pack.roto', name: 'Roto', path: 'events/roto.json' },
+            { id: 'path-pack.sinops', name: 'Sin ops', path: 'events/sinops.json' }
+          ]
+        }
+      })
+    )
+    await fs.writeFile(path.join(root, 'events', 'roto.json'), '{ no soy json')
+    await fs.writeFile(
+      path.join(root, 'events', 'sinops.json'),
+      JSON.stringify({ timeline: [] })
+    )
+
+    const issues = await validatePackage(root)
+    const fields = issues.map((i) => i.field)
+    expect(fields).toContain('events/falta.json')
+    expect(fields).toContain('events/roto.json')
+    // Falta `specVersion`.
+    expect(issues.some((i) => i.field === 'events/sinops.json' && i.message.includes('specVersion'))).toBe(true)
+  })
+
+  it('una escena válida por path valida el paquete entero', async () => {
+    const root = path.join(workDir!, 'event-ok')
+    await fs.mkdir(path.join(root, 'events'), { recursive: true })
+    await fs.writeFile(
+      path.join(root, 'manifest.json'),
+      JSON.stringify({
+        id: 'ok-pack',
+        name: 'Ok',
+        version: '0.1.0',
+        contributes: {
+          events: [{ id: 'ok-pack.night', name: 'Night', path: 'events/night.json' }]
+        }
+      })
+    )
+    await fs.writeFile(
+      path.join(root, 'events', 'night.json'),
+      JSON.stringify({
+        specVersion: 1,
+        schedule: { from: '2026-10-20', until: '2026-10-31' },
+        timeline: [{ op: 'stage.fog', amount: 0.4 }]
+      })
+    )
+    expect(await validatePackage(root)).toEqual([])
+  })
+
+  it('pack INCLUYE la carpeta events/ (si no, el .sef sale sin la escena)', async () => {
+    const root = path.join(workDir!, 'event-pack')
+    await fs.mkdir(path.join(root, 'events'), { recursive: true })
+    await fs.writeFile(
+      path.join(root, 'manifest.json'),
+      JSON.stringify({
+        id: 'pack-events',
+        name: 'Pack Events',
+        version: '0.1.0',
+        contributes: {
+          events: [{ id: 'pack-events.night', name: 'Night', path: 'events/night.json' }]
+        }
+      })
+    )
+    await fs.writeFile(
+      path.join(root, 'events', 'night.json'),
+      JSON.stringify({ specVersion: 1, timeline: [{ op: 'stage.fog' }] })
+    )
+
+    const out = await packSef(root)
+    const zipped = unzipSync(new Uint8Array(await fs.readFile(out)))
+    const names = Object.keys(zipped)
+    expect(names).toContain('manifest.json')
+    expect(names).toContain('events/night.json')
+  })
+})

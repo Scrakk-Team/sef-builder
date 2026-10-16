@@ -22,6 +22,8 @@ export const SEF = {
   ICONS_DIR: 'icons',
   PRODUCT_ICONS_DIR: 'productIcons',
   LSP_DIR: 'lsp',
+  /** Escenas de eventos (`contributes.events` → `path`). */
+  EVENTS_DIR: 'events',
   /** Extensión de paquete instalable. */
   EXTENSION_EXT: '.sef'
 } as const
