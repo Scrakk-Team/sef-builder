@@ -12,9 +12,10 @@
 
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
-import { zipSync, type Zippable } from 'fflate'
+import { zipSync } from 'fflate'
 import { SEF, collectCodePaths, RUNTIME_EXTERNALS } from './config.ts'
 import { validatePackage } from './schema.ts'
+import { signAndZip } from './sign.ts'
 
 // ── create ─────────────────────────────────────────────────────────────────
 
@@ -184,9 +185,13 @@ async function compileWithBun(
 
 /**
  * Zipea el paquete a `<root>.sef`: manifest + dist + data por convención.
+ * Si `signingKeyPem` está presente, agrega `signature.json` (Ed25519).
  * Devuelve la ruta del .sef generado.
  */
-export async function packSef(packageRoot: string): Promise<string> {
+export async function packSef(
+  packageRoot: string,
+  options: { signingKeyPem?: string } = {}
+): Promise<string> {
   // Nunca empaquetar un paquete inválido (la CLI también valida; doble cinturón).
   const issues = await validatePackage(packageRoot)
   if (issues.length > 0) {
@@ -196,7 +201,7 @@ export async function packSef(packageRoot: string): Promise<string> {
     )
   }
 
-  const files: Zippable = {}
+  const files: Record<string, Uint8Array> = {}
 
   /**
    * Los módulos que el manifest referencia (componentes, iconos) YA viajan
@@ -251,7 +256,9 @@ export async function packSef(packageRoot: string): Promise<string> {
     await fs.readFile(path.join(packageRoot, SEF.MANIFEST))
   )
 
-  const zipped = zipSync(files)
+  const zipped = options.signingKeyPem
+    ? signAndZip(files, options.signingKeyPem).zip
+    : zipSync(files)
   const outPath = packageRoot.replace(/[\\/]+$/, '') + SEF.EXTENSION_EXT
   await fs.writeFile(outPath, zipped)
   return outPath

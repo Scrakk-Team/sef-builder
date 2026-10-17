@@ -3,8 +3,8 @@
 Authoring CLI for **Scrakk Studio** extensions (SEF packages): scaffold, bundle,
 pack and validate.
 
-Published to npm as [`@scrakk-official/cli`](https://www.npmjs.com/package/@scrakk-official/cli);
-the binary it installs is **`sef`**.
+The binary is **`sef`**. The npm package is **not published yet** (`@scrakk-official/cli`
+is unclaimed); use the GitHub Release tarball until it is.
 
 > The SEF package format and the app-side rules are documented in the
 > [Scrakk Studio docs](https://github.com/Scrakk-Team/Scrakk-Studio/tree/master/docs/extensions/reference/cli.md).
@@ -12,18 +12,8 @@ the binary it installs is **`sef`**.
 ## Install
 
 ```sh
-npm install -g @scrakk-official/cli      # from npm (once published)
-npx @scrakk-official/cli build ./ext     # on demand
-```
-
-### Without the npm registry
-
-You do **not** need the package published: install the tarball attached to the
-latest GitHub Release (npm downloads a ready-made bundle, it builds nothing):
-
-```sh
+# Supported install (the npm package is not published yet):
 npm install -g https://github.com/Scrakk-Team/sef-builder/releases/latest/download/cli.tgz
-npx https://github.com/Scrakk-Team/sef-builder/releases/latest/download/cli.tgz build ./ext
 ```
 
 Or let npm clone the repo itself and build it (standard npm):
@@ -37,11 +27,29 @@ npm install -g github:Scrakk-Team/sef-builder
 ```sh
 sef create   "<name>" [dir]   # scaffold with a sample panel
 sef build    <dir>            # bundle → dist/modules.js
-sef pack     <dir>            # validate and write <dir>.sef
+sef pack     <dir> [--key <pem>]  # validate + write <dir>.sef (signs if a key is given)
 sef validate <dir>            # validate only
+sef keygen   [dir]            # Ed25519 key pair (private 0600)
+sef verify   <file.sef> [--pubkey <pem>]
 sef --help
 sef --version
 ```
+
+## Signing a package
+
+The market verifies signed packages and pins the publisher key per extension id.
+
+```sh
+sef keygen ./keys
+sef pack ./my-extension --key ./keys/sef-signing.key
+sef verify ./my-extension.sef --pubkey ./keys/sef-signing.pub
+```
+
+`pack` adds a `signature.json` with the SHA-256 of the manifest and of every
+file, plus an Ed25519 signature over that canonical payload. Keep the private
+key out of the repo (CI secret / password manager); only the public key is
+shared with the store. Without `--key` (or `SEF_SIGNING_KEY`) the package is
+still produced, with a warning: it will be treated as unsigned.
 
 ### `create`
 
@@ -69,7 +77,7 @@ Validates first; on errors it does not pack. Zips the manifest + `dist/` + the
 data folders (`themes/`, `icons/`, `productIcons/`, `lsp/`, `events/`) and the
 pack's `assets/` — plus `CREDITS.md` / `LICENSE*`, so the attribution of any
 third-party asset travels with the package — into `<packageRoot>.sef` (next to
-the package folder).
+the package folder). With `--key`, it also adds and signs `signature.json`.
 
 ### `validate`
 
