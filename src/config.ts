@@ -72,5 +72,10 @@ export function collectCodePaths(manifest: Record<string, unknown>): string[] {
     push(tab?.component)
     push(tab?.icon)
   }
+  // Overlays de un evento: componentes que el IDE monta en la capa de efectos o
+  // de background. Tienen que viajar compilados en `dist/`.
+  for (const overlay of (contributes.overlays as Array<Record<string, unknown>> | undefined) ?? []) {
+    push(overlay?.component)
+  }
   return [...new Set(paths)]
 }

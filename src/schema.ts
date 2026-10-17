@@ -91,7 +91,8 @@ export function validateManifest(manifest: Record<string, unknown>): ValidationI
     'tools',
     'skills',
     'fileHandlers',
-    'events'
+    'events',
+    'overlays'
   ]
   for (const key of Object.keys(c)) {
     if (!KNOWN_KINDS.includes(key)) {

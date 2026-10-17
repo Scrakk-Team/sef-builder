@@ -54,6 +54,9 @@ function collectCodePaths(manifest) {
     push(tab?.component);
     push(tab?.icon);
   }
+  for (const overlay of contributes.overlays ?? []) {
+    push(overlay?.component);
+  }
   return [...new Set(paths)];
 }
 
@@ -129,7 +132,8 @@ function validateManifest(manifest) {
     "tools",
     "skills",
     "fileHandlers",
-    "events"
+    "events",
+    "overlays"
   ];
   for (const key of Object.keys(c)) {
     if (!KNOWN_KINDS.includes(key)) {
@@ -614,7 +618,7 @@ opciones:
   -v, --version                       versi\xF3n del CLI
   -h, --help                          esta ayuda`;
 async function readVersion() {
-  if (true) return "0.2.0";
+  if (true) return "0.1.5";
   try {
     const url = new URL("../package.json", import.meta.url);
     const raw = await fs4.readFile(url, "utf-8");
