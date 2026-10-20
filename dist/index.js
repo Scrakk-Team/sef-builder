@@ -133,12 +133,34 @@ function validateManifest(manifest) {
     "skills",
     "fileHandlers",
     "events",
-    "overlays"
+    "overlays",
+    "keybindings"
   ];
   for (const key of Object.keys(c)) {
     if (!KNOWN_KINDS.includes(key)) {
       issues.push({ field: `contributes.${key}`, message: `tipo desconocido (${KNOWN_KINDS.join(", ")})` });
     }
+  }
+  const keybindings = c.keybindings ?? [];
+  if (Array.isArray(keybindings)) {
+    keybindings.forEach((entry, index) => {
+      if (!entry || typeof entry !== "object") {
+        issues.push({ field: `contributes.keybindings[${index}]`, message: "entrada inv\xE1lida" });
+        return;
+      }
+      if (typeof entry.command !== "string" || entry.command.trim().length === 0) {
+        issues.push({ field: `contributes.keybindings[${index}].command`, message: "falta el comando" });
+      }
+      if (typeof entry.key !== "string" || entry.key.trim().length === 0) {
+        issues.push({ field: `contributes.keybindings[${index}].key`, message: "falta la combinaci\xF3n" });
+      }
+      if (entry.when !== void 0) {
+        issues.push({
+          field: `contributes.keybindings[${index}].when`,
+          message: "no soportado: los atajos no tienen scope por contexto (se ignora al instalar)"
+        });
+      }
+    });
   }
   return issues;
 }
@@ -618,7 +640,7 @@ opciones:
   -v, --version                       versi\xF3n del CLI
   -h, --help                          esta ayuda`;
 async function readVersion() {
-  if (true) return "0.1.5";
+  if (true) return "0.1.6";
   try {
     const url = new URL("../package.json", import.meta.url);
     const raw = await fs4.readFile(url, "utf-8");

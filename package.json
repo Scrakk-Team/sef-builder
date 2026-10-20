@@ -1,6 +1,6 @@
 {
   "name": "@scrakk-official/cli",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "SEF builder — create, build, pack and validate Scrakk Studio extensions.",
   "keywords": [
     "scrakk",

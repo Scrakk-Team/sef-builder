@@ -126,6 +126,50 @@ describe('validate', () => {
   })
 })
 
+describe('keybindings (kind nuevo)', () => {
+  it('acepta command + key (incluido un chord)', async () => {
+    const root = path.join(workDir!, 'kb-ok')
+    await fs.mkdir(root, { recursive: true })
+    await fs.writeFile(
+      path.join(root, 'manifest.json'),
+      JSON.stringify({
+        id: 'kb-ext',
+        name: 'KB',
+        version: '1.0.0',
+        contributes: {
+          keybindings: [
+            { command: 'kb-ext:save', key: 'ctrl+s' },
+            { command: 'kb-ext:all', key: 'ctrl+k ctrl+s' }
+          ]
+        }
+      })
+    )
+    expect(await validatePackage(root)).toEqual([])
+  })
+
+  it('avisa por `when` (no soportado) y por entradas incompletas', async () => {
+    const root = path.join(workDir!, 'kb-when')
+    await fs.mkdir(root, { recursive: true })
+    await fs.writeFile(
+      path.join(root, 'manifest.json'),
+      JSON.stringify({
+        id: 'kb-when',
+        name: 'KB',
+        version: '1.0.0',
+        contributes: {
+          keybindings: [
+            { command: 'x.y', key: 'ctrl+d', when: 'editorTextFocus' },
+            { command: 'x.z' }
+          ]
+        }
+      })
+    )
+    const issues = await validatePackage(root)
+    expect(issues.some((issue) => issue.field.endsWith('.when'))).toBe(true)
+    expect(issues.some((issue) => issue.field.endsWith('.key'))).toBe(true)
+  })
+})
+
 describe('build + pack E2E', () => {
   it('scaffold → build → pack produce .sef legible por el instalador del IDE', async () => {
     const root = await createScaffold({ name: 'E2E Ext', targetDir: workDir! })

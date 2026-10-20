@@ -92,12 +92,38 @@ export function validateManifest(manifest: Record<string, unknown>): ValidationI
     'skills',
     'fileHandlers',
     'events',
-    'overlays'
+    'overlays',
+    'keybindings'
   ]
   for (const key of Object.keys(c)) {
     if (!KNOWN_KINDS.includes(key)) {
       issues.push({ field: `contributes.${key}`, message: `tipo desconocido (${KNOWN_KINDS.join(', ')})` })
     }
+  }
+
+  // keybindings: cada entrada necesita command + key. `when` no se soporta en
+  // SEF (el IDE no tiene scope por contexto): se avisa acá, no se ignora en
+  // silencio al instalar.
+  const keybindings = ((c.keybindings ?? []) as Array<Record<string, unknown>>)
+  if (Array.isArray(keybindings)) {
+    keybindings.forEach((entry, index) => {
+      if (!entry || typeof entry !== 'object') {
+        issues.push({ field: `contributes.keybindings[${index}]`, message: 'entrada inválida' })
+        return
+      }
+      if (typeof entry.command !== 'string' || entry.command.trim().length === 0) {
+        issues.push({ field: `contributes.keybindings[${index}].command`, message: 'falta el comando' })
+      }
+      if (typeof entry.key !== 'string' || entry.key.trim().length === 0) {
+        issues.push({ field: `contributes.keybindings[${index}].key`, message: 'falta la combinación' })
+      }
+      if (entry.when !== undefined) {
+        issues.push({
+          field: `contributes.keybindings[${index}].when`,
+          message: "no soportado: los atajos no tienen scope por contexto (se ignora al instalar)"
+        })
+      }
+    })
   }
 
   return issues
